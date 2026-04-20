@@ -1,0 +1,43 @@
+{
+    // Editor general settings
+    "editor.rulers": [
+        80
+    ],
+    "editor.formatOnSave": true,
+    "editor.formatOnType": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnSaveMode": "file",
+    "editor.codeActions.triggerOnFocusChange": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always",
+        "source.fixAll": "always",
+        "source.fixAll.eslint": "always",
+        "source.assembly": "always"
+    },
+    // Files management
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.autoSave": "onFocusChange",
+    "files.autoSaveDelay": 100,
+    "files.associations": {
+        ".env": "shellscript",
+        "*.sh": "shellscript",
+        ".secrets": "shellscript"
+    },
+    "go.lintTool": "golangci-lint",
+    "go.formatTool": "custom",
+    "go.alternateTools": {
+        "customFormatter": "golangci-lint"
+    },
+    "go.formatFlags": [
+        "fmt",
+        "--stdin"
+    ],
+    "go.lintOnSave": "package",
+    "go.useLanguageServer": true,
+    "cSpell.words": [
+        "codecrafters",
+        "fsys",
+        "rheltypes"
+    ]
+}
