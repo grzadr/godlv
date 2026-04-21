@@ -1,4 +1,4 @@
-.PHONY: all test test-verbose test-coverage coverage-html lint build clean generate
+.PHONY: all test test-verbose test-coverage coverage-html lint build clean generate run
 
 # Binary name and output directory
 BINARY_NAME=godlv
@@ -10,7 +10,7 @@ COVERAGE_FILE=$(COVERAGE_DIR)/coverage.out
 all: build
 
 # Build the binary (depends on tests and linting passing)
-build: generate test lint
+build: clean generate lint test
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
 	go build -o $(BIN_DIR)/$(BINARY_NAME) .
@@ -54,3 +54,6 @@ clean:
 	@echo "Cleaning..."
 	rm -rf $(BIN_DIR) $(COVERAGE_DIR)
 	@echo "Clean complete"
+
+run: build
+	$(BIN_DIR)/./$(BINARY_NAME)
