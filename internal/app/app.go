@@ -14,7 +14,7 @@ func NewApp(level slog.Level) *App {
 	lvl := new(slog.LevelVar)
 	lvl.Set(level)
 
-	return new(App{
+	return &App{
 		logLevel: lvl,
 		logger: slog.New(
 			slog.NewTextHandler(
@@ -22,7 +22,7 @@ func NewApp(level slog.Level) *App {
 				new(slog.HandlerOptions{Level: lvl}),
 			),
 		),
-	})
+	}
 }
 
 func (a *App) Debug(msg string, args ...any) {
@@ -31,6 +31,14 @@ func (a *App) Debug(msg string, args ...any) {
 
 func (a *App) Info(msg string, args ...any) {
 	a.logger.Info(msg, args...)
+}
+
+func (a *App) Error(msg string, args ...any) {
+	a.logger.Error(msg, args...)
+}
+
+func (a *App) Warn(msg string, args ...any) {
+	a.logger.Warn(msg, args...)
 }
 
 func (a *App) SetLevel(level slog.Level) {

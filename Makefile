@@ -56,4 +56,4 @@ clean:
 	@echo "Clean complete"
 
 run: build
-	$(BIN_DIR)/./$(BINARY_NAME)
+	$(BIN_DIR)/./$(BINARY_NAME) -h
