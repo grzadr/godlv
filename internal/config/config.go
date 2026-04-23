@@ -8,7 +8,7 @@ import (
 type ArgConfig struct {
 	LogLevel  slog.Level
 	OutputDir string
-	NonFlag []string
+	NonFlag   []string
 }
 
 func NewArgConfig(args []string) (*ArgConfig, error) {
