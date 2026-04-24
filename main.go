@@ -1,17 +1,15 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"os"
 	"os/exec"
-	"sync"
 
 	"github.com/grzadr/godlv/internal/app"
 	"github.com/grzadr/godlv/internal/config"
+	"github.com/grzadr/godlv/internal/runcmd"
 )
 
 const (
@@ -19,77 +17,46 @@ const (
 	exitCodeErr = 2
 )
 
-type ExecResult struct {
-	ExitCode int
-	Msg      string
-	Err      error
-}
+func run(ctx context.Context, app *app.App, _ *config.ArgConfig) error {
+	// cmd :=
+	// args := []string{
+	// 	"--force-overwrites",
+	// 	"--no-progress",
+	// 	"-t",
+	// 	"mkv",
+	// 	"https://www.cda.pl/video/2142915386",
+	// }
 
-func ExecCommand(
-	ctx context.Context,
-	name string,
-	args ...string,
-) (<-chan string, <-chan ExecResult, context.CancelFunc, error) {
-	cmdCtx, cmdCancel := context.WithCancel(ctx)
-
-	cmd := exec.CommandContext(cmdCtx, name, args...)
-	stdoutPipe, pipeErr := cmd.StdoutPipe()
-
-	if pipeErr != nil {
-		cmdCancel()
-		return nil, nil, nil, pipeErr
+	cmd := "bash"
+	args := []string{
+		"-c",
+		`for x in $(seq 1 3); do sleep 1; echo "number"; done; exit 0`,
 	}
 
-	stderrBuf := new(bytes.Buffer)
-	cmd.Stderr = stderrBuf
-
-	if startErr := cmd.Start(); startErr != nil {
-		cmdCancel()
-		return nil, nil, nil, startErr
+	stdout, resultChan, cancel, err := runcmd.ExecCmd(
+		ctx,
+		cmd,
+		args...)
+	if err != nil {
+		return err
 	}
-
-	stdoutChan := make(chan string)
-	resultChan := make(chan ExecResult, 1)
-
-	var wg sync.WaitGroup
-	var scanErr error
-
-	wg.Go(func() {
-		defer close(stdoutChan)
-		scanner := bufio.NewScanner(stdoutPipe)
-		const maxBufferSize = 1024 * 1024
-		const minBufferSie = 64 * 1024
-		scanner.Buffer(make([]byte, minBufferSie), maxBufferSize)
-
-		for scanner.Scan() {
-			select {
-			case stdoutChan <- scanner.Text():
-
-			case <-cmdCtx.Done():
-				return
-			}
-		}
-		scanErr = scanner.Err()
-	})
-
+	defer cancel()
 	go func() {
-		defer cmdCancel()
-		defer close(resultChan)
-
-		wg.Wait()
-		cmdErr := cmd.Wait()
-
-		resultChan <- ExecResult{
-			ExitCode: cmd.ProcessState.ExitCode(),
-			Msg:      stderrBuf.String(),
-			Err:      errors.Join(scanErr, cmdErr, cmdCtx.Err()),
+		for msg := range stdout {
+			app.Info("received message", "msg", msg)
+			// cancel()
+			// break
 		}
 	}()
 
-	return stdoutChan, resultChan, cmdCancel, nil
-}
+	result := <-resultChan
+	app.Info("finished", "result", result)
+	app.Info("error", "canceled", errors.Is(result.Err, context.Canceled))
 
-func run(ctx context.Context, _ *app.App, _ *config.ArgConfig) error {
+	if exitErr, ok := errors.AsType[*exec.ExitError](result.Err); ok {
+		app.Info("error", "exit_error", exitErr)
+	}
+
 	return nil
 }
 
@@ -111,8 +78,4 @@ func main() {
 		app.Error("runtime error", "msg", runErr)
 		os.Exit(exitCodeErr)
 	}
-
-	app.Info("hello world", "conf", *conf)
-	app.Debug("debug statement")
-	app.Error("test")
 }
