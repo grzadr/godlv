@@ -1,8 +1,11 @@
-package app
+package setup
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 type App struct {
@@ -43,4 +46,9 @@ func (a *App) Warn(msg string, args ...any) {
 
 func (a *App) SetLevel(level slog.Level) {
 	a.logLevel.Set(level)
+}
+
+func NewContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(),
+		os.Interrupt, syscall.SIGTERM)
 }

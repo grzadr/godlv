@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os/exec"
 	"sync"
 )
@@ -18,16 +19,26 @@ type ExecResult struct {
 func ExecCmd(
 	ctx context.Context,
 	name string,
+	ignoreStdout bool,
 	args ...string,
 ) (<-chan string, <-chan ExecResult, context.CancelFunc, error) {
 	cmdCtx, cmdCancel := context.WithCancel(ctx)
 
 	cmd := exec.CommandContext(cmdCtx, name, args...)
-	stdoutPipe, pipeErr := cmd.StdoutPipe()
 
-	if pipeErr != nil {
-		cmdCancel()
-		return nil, nil, nil, pipeErr
+	var stdoutChan chan string
+	var stdoutPipe io.ReadCloser
+	var pipeErr error
+
+	if ignoreStdout {
+		cmd.Stdout = io.Discard
+	} else {
+		stdoutPipe, pipeErr = cmd.StdoutPipe()
+
+		if pipeErr != nil {
+			cmdCancel()
+			return nil, nil, nil, pipeErr
+		}
 	}
 
 	stderrBuf := new(bytes.Buffer)
@@ -38,29 +49,31 @@ func ExecCmd(
 		return nil, nil, nil, startErr
 	}
 
-	stdoutChan := make(chan string)
 	resultChan := make(chan ExecResult, 1)
 
 	var wg sync.WaitGroup
 	var scanErr error
 
-	wg.Go(func() {
-		defer close(stdoutChan)
-		scanner := bufio.NewScanner(stdoutPipe)
-		const maxBufferSize = 1024 * 1024
-		const minBufferSie = 64 * 1024
-		scanner.Buffer(make([]byte, minBufferSie), maxBufferSize)
+	if !ignoreStdout {
+		wg.Go(func() {
+			defer close(stdoutChan)
+			stdoutChan = make(chan string)
+			scanner := bufio.NewScanner(stdoutPipe)
+			const maxBufferSize = 1024 * 1024
+			const minBufferSie = 64 * 1024
+			scanner.Buffer(make([]byte, minBufferSie), maxBufferSize)
 
-		for scanner.Scan() {
-			select {
-			case stdoutChan <- scanner.Text():
+			for scanner.Scan() {
+				select {
+				case stdoutChan <- scanner.Text():
 
-			case <-cmdCtx.Done():
-				return
+				case <-cmdCtx.Done():
+					return
+				}
 			}
-		}
-		scanErr = scanner.Err()
-	})
+			scanErr = scanner.Err()
+		})
+	}
 
 	go func() {
 		defer cmdCancel()

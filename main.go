@@ -4,50 +4,49 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 
-	"github.com/grzadr/godlv/internal/app"
 	"github.com/grzadr/godlv/internal/config"
 	"github.com/grzadr/godlv/internal/runcmd"
+	"github.com/grzadr/godlv/internal/setup"
 )
 
 const (
-	exitCode    = 0
-	exitCodeErr = 2
+	exitCodeSuccess = 0
+	exitCodeErr     = 2
 )
 
-func run(ctx context.Context, app *app.App, _ *config.ArgConfig) error {
-	// cmd :=
-	// args := []string{
-	// 	"--force-overwrites",
-	// 	"--no-progress",
-	// 	"-t",
-	// 	"mkv",
-	// 	"https://www.cda.pl/video/2142915386",
-	// }
+func run(app *setup.App, cfg *config.ArgConfig) error {
+	ctxRun, cancelRun := setup.NewContext()
+	defer cancelRun()
 
-	cmd := "bash"
-	args := []string{
-		"-c",
-		`for x in $(seq 1 3); do sleep 1; echo "number"; done; exit 0`,
+	app.Info("run", "cfg", cfg)
+
+	defaultArgs, flagErr := config.NewArgFlags(cfg)
+
+	if flagErr != nil {
+		return fmt.Errorf("error parsing default ergs: %w", flagErr)
 	}
 
-	stdout, resultChan, cancel, err := runcmd.ExecCmd(
-		ctx,
+	app.Info("flags", "arg", defaultArgs)
+
+	cmd := "yt-dlp"
+
+	args := slices.Concat(defaultArgs, cfg.NonFlag)
+
+	_, resultChan, cancel, err := runcmd.ExecCmd(
+		ctxRun,
 		cmd,
-		args...)
+		true,
+		args...,
+	)
 	if err != nil {
 		return err
 	}
 	defer cancel()
-	go func() {
-		for msg := range stdout {
-			app.Info("received message", "msg", msg)
-			// cancel()
-			// break
-		}
-	}()
 
 	result := <-resultChan
 	app.Info("finished", "result", result)
@@ -62,8 +61,7 @@ func run(ctx context.Context, app *app.App, _ *config.ArgConfig) error {
 
 func main() {
 	conf, confErr := config.NewArgConfig(os.Args[1:])
-	app := app.NewApp(conf.LogLevel)
-	ctx := context.Background()
+	app := setup.NewApp(conf.LogLevel)
 
 	if confErr != nil {
 		if !errors.Is(confErr, flag.ErrHelp) {
@@ -71,10 +69,10 @@ func main() {
 			os.Exit(exitCodeErr)
 		}
 
-		os.Exit(exitCode)
+		os.Exit(exitCodeSuccess)
 	}
 
-	if runErr := run(ctx, app, conf); runErr != nil {
+	if runErr := run(app, conf); runErr != nil {
 		app.Error("runtime error", "msg", runErr)
 		os.Exit(exitCodeErr)
 	}
