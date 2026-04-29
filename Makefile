@@ -57,3 +57,6 @@ clean:
 
 run: build
 	$(BIN_DIR)/./$(BINARY_NAME)
+
+server: build
+	$(BIN_DIR)/./$(BINARY_NAME) -p 8080 -o ~/Download -t ~/Download/temp

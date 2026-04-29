@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -74,7 +73,7 @@ func RunServer(
 		BaseContext:       func(_ net.Listener) context.Context { return ctx },
 	}
 
-	log.Printf("Server listening on %s", server.Addr)
+	serverApp.Info("Server listening", "address", server.Addr)
 	if err := server.ListenAndServe(); err != nil {
 		return fmt.Errorf("server failed to start: %w", err)
 	}

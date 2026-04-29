@@ -63,9 +63,8 @@ func run(app *setup.App, cfg *config.ArgConfig) error {
 
 	if len(cfg.NonFlag) > 0 {
 		return runCmd(ctx, app, cfg)
-	} else {
-		return web.RunServer(ctx, app, cfg)
 	}
+	return web.RunServer(ctx, app, cfg)
 }
 
 func main() {
