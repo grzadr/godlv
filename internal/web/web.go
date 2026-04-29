@@ -90,8 +90,6 @@ func (app *ServerApp) handleDownload(appCtx context.Context) http.HandlerFunc {
 			return
 		}
 
-		app.wg.Add(1)
-
 		// Launch the goroutine, passing the explicitly injected appCtx
 		app.wg.Go(func() {
 			app.Info("Starting background download", "url", videoURL)
