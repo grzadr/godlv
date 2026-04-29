@@ -1,0 +1,13 @@
+services:
+  godlv:
+    build: .
+    image: grzadr/godlv:latest
+    container_name: godlv
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - "${DOWNLOADS_PATH:-./downloads}:/downloads"
+      - "${TEMP_PATH:-./downloads/temp}:/temp"
+    command: [ "-p", "8080", "-o", "/downloads", "-t", "/temp" ]
+    restart: unless-stopped

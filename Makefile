@@ -1,10 +1,11 @@
-.PHONY: all test test-verbose test-coverage coverage-html lint build clean generate run
+.PHONY: all test test-verbose test-coverage coverage-html lint build clean generate run docker-build docker-publish
 
 # Binary name and output directory
 BINARY_NAME=godlv
 BIN_DIR=bin
 COVERAGE_DIR=coverage
 COVERAGE_FILE=$(COVERAGE_DIR)/coverage.out
+DOCKER_IMAGE=grzadr/godlv:latest
 
 # Default target
 all: build
@@ -60,3 +61,13 @@ run: build
 
 server: build
 	$(BIN_DIR)/./$(BINARY_NAME) -p 8080 -o ~/Download -t ~/Download/temp
+
+# Build the docker image
+docker-build: lint test
+	@echo "Building docker image $(DOCKER_IMAGE)..."
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_IMAGE) .
+
+# Publish the docker image
+docker-publish: docker-build
+	@echo "Publishing docker image $(DOCKER_IMAGE)..."
+	docker push $(DOCKER_IMAGE)
