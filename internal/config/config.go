@@ -45,6 +45,7 @@ type ArgConfig struct {
 	Overwrite  bool
 	NoContinue bool
 	Format     FormatAlias
+	Port       int
 }
 
 func NewArgConfig(args []string) (*ArgConfig, error) {
@@ -59,6 +60,8 @@ func NewArgConfig(args []string) (*ArgConfig, error) {
 		noContinueUsage   = "Do not resume partially downloaded fragments. If the file is not fragmented, restart download of the entire file"
 		overwriteUsage    = "force files to be "
 		formatUsage       = "[mp3|aac|mp4|mkv] default: mkv"
+		portDefault       = 8080
+		portUsage         = "port use for web server, default: 8080"
 	)
 
 	debugMode := fs.Bool(
@@ -82,6 +85,8 @@ func NewArgConfig(args []string) (*ArgConfig, error) {
 	fs.BoolVar(&conf.Overwrite, "overwrite", false, overwriteUsage)
 	fs.TextVar(&conf.Format, "format", Mkv, formatUsage)
 	fs.TextVar(&conf.Format, "f", Mkv, formatUsage)
+	fs.IntVar(&conf.Port, "port", portDefault, portUsage)
+	fs.IntVar(&conf.Port, "p", portDefault, portUsage)
 
 	if parseErr := fs.Parse(args); parseErr != nil {
 		return conf, parseErr

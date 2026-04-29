@@ -12,6 +12,7 @@ import (
 	"github.com/grzadr/godlv/internal/config"
 	"github.com/grzadr/godlv/internal/runcmd"
 	"github.com/grzadr/godlv/internal/setup"
+	"github.com/grzadr/godlv/internal/web"
 )
 
 const (
@@ -19,10 +20,7 @@ const (
 	exitCodeErr     = 2
 )
 
-func run(app *setup.App, cfg *config.ArgConfig) error {
-	ctxRun, cancelRun := setup.NewContext()
-	defer cancelRun()
-
+func runCmd(ctx context.Context, app *setup.App, cfg *config.ArgConfig) error {
 	app.Info("run", "cfg", cfg)
 
 	defaultArgs, flagErr := config.NewArgFlags(cfg)
@@ -38,7 +36,7 @@ func run(app *setup.App, cfg *config.ArgConfig) error {
 	args := slices.Concat(defaultArgs, cfg.NonFlag)
 
 	_, resultChan, cancel, err := runcmd.ExecCmd(
-		ctxRun,
+		ctx,
 		cmd,
 		true,
 		args...,
@@ -57,6 +55,17 @@ func run(app *setup.App, cfg *config.ArgConfig) error {
 	}
 
 	return nil
+}
+
+func run(app *setup.App, cfg *config.ArgConfig) error {
+	ctx, cancel := setup.NewContext()
+	defer cancel()
+
+	if len(cfg.NonFlag) > 0 {
+		return runCmd(ctx, app, cfg)
+	} else {
+		return web.RunServer(ctx, app, cfg)
+	}
 }
 
 func main() {
