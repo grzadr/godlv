@@ -10,6 +10,9 @@ import (
 	"os/exec"
 	"slices"
 	"sync"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/grzadr/godlv/internal/config"
 	"github.com/grzadr/godlv/internal/setup"
@@ -132,4 +135,64 @@ func RunCmd(ctx context.Context, app *setup.App, cfg *config.ArgConfig) error {
 	}
 
 	return nil
+}
+
+type JobStatus int
+
+const (
+	StatusQueued JobStatus = iota
+	StatusRejected
+	StatusRunning
+	StatusFailed
+	StatusCompleted
+)
+
+type JobMessage struct {
+	uuid      uuid.UUID
+	timestamp time.Time
+	status    JobStatus
+}
+
+type JobSupervisor struct {
+	capacity chan struct{}
+	wg       *sync.WaitGroup
+	msg      chan JobMessage
+}
+
+func NewJobSupervisor(capacity int) *JobSupervisor {
+	return &JobSupervisor{
+		capacity: make(chan struct{}, max(capacity, 1)),
+		wg:       new(sync.WaitGroup),
+		msg:      make(chan JobMessage, 1),
+	}
+}
+
+func (js *JobSupervisor) Go(
+	ctx context.Context,
+	app *setup.App,
+	cfg *config.ArgConfig,
+) {
+	return
+}
+
+func (js *JobSupervisor) Add(
+	ctx context.Context,
+	app *setup.App,
+	cfg *config.ArgConfig,
+) (uuid.UUID, error) {
+	select {
+	case js.capacity <- struct{}{}:
+		id, idErr := uuid.NewV7()
+
+		if idErr != nil {
+			return uuid.UUID{}, fmt.Errorf("error generating uuid: %w", idErr)
+		}
+
+		js.wg.Go(func() { js.Go(ctx, app, cfg) })
+
+		return id, nil
+
+	case <-ctx.Done():
+		return uuid.UUID{}, nil
+	}
 }
