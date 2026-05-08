@@ -106,7 +106,7 @@ func RunCmd(ctx context.Context, app *setup.App, cfg *config.ArgConfig) error {
 	defaultArgs, flagErr := config.NewArgFlags(cfg)
 
 	if flagErr != nil {
-		return fmt.Errorf("error parsing default ergs: %w", flagErr)
+		return fmt.Errorf("error parsing default args: %w", flagErr)
 	}
 
 	app.Info("flags", "arg", defaultArgs)
@@ -122,25 +122,22 @@ func RunCmd(ctx context.Context, app *setup.App, cfg *config.ArgConfig) error {
 		args...,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error setting up command: %w", err)
 	}
 	defer cancel()
 
 	result := <-resultChan
 	app.Info("finished", "result", result)
-	app.Info("error", "canceled", errors.Is(result.Err, context.Canceled))
-
-	if exitErr, ok := errors.AsType[*exec.ExitError](result.Err); ok {
-		app.Info("error", "exit_error", exitErr)
-	}
-
-	return nil
+	return result.Err
 }
 
+//go:generate stringer -type=JobStatus
 type JobStatus int
 
 const (
 	StatusQueued JobStatus = iota
+	StatusQueueFailed
+	StatusQueueRejected
 	StatusRejected
 	StatusRunning
 	StatusFailed
@@ -148,7 +145,7 @@ const (
 )
 
 type JobMessage struct {
-	uuid      uuid.UUID
+	id        uuid.UUID
 	timestamp time.Time
 	status    JobStatus
 }
@@ -167,12 +164,28 @@ func NewJobSupervisor(capacity int) *JobSupervisor {
 	}
 }
 
+func (js *JobSupervisor) Wait() {
+	js.wg.Wait()
+}
+
 func (js *JobSupervisor) Go(
+	id uuid.UUID,
 	ctx context.Context,
 	app *setup.App,
 	cfg *config.ArgConfig,
 ) {
-	return
+	payload := JobMessage{
+		id:        id,
+		timestamp: time.Now(),
+		status:    StatusQueued,
+	}
+	select {
+	case js.msg <- payload:
+	case <-ctx.Done():
+		return
+	}
+
+	err := RunCmd(ctx, app, cfg)
 }
 
 func (js *JobSupervisor) Add(
@@ -188,7 +201,7 @@ func (js *JobSupervisor) Add(
 			return uuid.UUID{}, fmt.Errorf("error generating uuid: %w", idErr)
 		}
 
-		js.wg.Go(func() { js.Go(ctx, app, cfg) })
+		js.wg.Go(func() { js.Go(id, ctx, app, cfg) })
 
 		return id, nil
 
