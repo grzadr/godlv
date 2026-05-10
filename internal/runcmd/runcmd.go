@@ -145,9 +145,10 @@ const (
 )
 
 type JobMessage struct {
-	id        uuid.UUID
-	timestamp time.Time
-	status    JobStatus
+	Id        uuid.UUID
+	Timestamp time.Time
+	Status    JobStatus
+	Err       error
 }
 
 type JobSupervisor struct {
@@ -168,6 +169,22 @@ func (js *JobSupervisor) Wait() {
 	js.wg.Wait()
 }
 
+func (js *JobSupervisor) sendMessage(msg JobMessage, ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
+	select {
+	case js.msg <- msg:
+	case <-ctx.Done():
+		return
+	default:
+		return
+	}
+}
+
 func (js *JobSupervisor) Go(
 	id uuid.UUID,
 	ctx context.Context,
@@ -175,9 +192,9 @@ func (js *JobSupervisor) Go(
 	cfg *config.ArgConfig,
 ) {
 	payload := JobMessage{
-		id:        id,
-		timestamp: time.Now(),
-		status:    StatusQueued,
+		Id:        id,
+		Timestamp: time.Now(),
+		Status:    StatusQueued,
 	}
 	select {
 	case js.msg <- payload:
